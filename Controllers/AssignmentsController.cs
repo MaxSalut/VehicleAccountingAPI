@@ -2,15 +2,17 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using VehicleAccountingAPI.Data;
 using VehicleAccountingAPI.Models;
 
 namespace VehicleAccountingAPI.Controllers
 {
-    public class AssignmentsController : Controller
+    [Route("api/[controller]")]
+    [ApiController]
+    public class AssignmentsController : ControllerBase
     {
         private readonly VehicleAccountingContext _context;
 
@@ -19,147 +21,83 @@ namespace VehicleAccountingAPI.Controllers
             _context = context;
         }
 
-        // GET: Assignments
-        public async Task<IActionResult> Index()
+        // GET: api/Assignments
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<Assignment>>> GetAssignments()
         {
-            var vehicleAccountingContext = _context.Assignments.Include(a => a.Driver).Include(a => a.Vehicle);
-            return View(await vehicleAccountingContext.ToListAsync());
+            return await _context.Assignments.ToListAsync();
         }
 
-        // GET: Assignments/Details/5
-        public async Task<IActionResult> Details(int? id)
+        // GET: api/Assignments/5
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Assignment>> GetAssignment(int id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var assignment = await _context.Assignments
-                .Include(a => a.Driver)
-                .Include(a => a.Vehicle)
-                .FirstOrDefaultAsync(m => m.AssignmentId == id);
-            if (assignment == null)
-            {
-                return NotFound();
-            }
-
-            return View(assignment);
-        }
-
-        // GET: Assignments/Create
-        public IActionResult Create()
-        {
-            ViewData["DriverId"] = new SelectList(_context.Drivers, "DriverId", "Email");
-            ViewData["VehicleId"] = new SelectList(_context.Vehicles, "VehicleId", "LicensePlate");
-            return View();
-        }
-
-        // POST: Assignments/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("AssignmentId,VehicleId,DriverId,StartDate,EndDate")] Assignment assignment)
-        {
-            if (ModelState.IsValid)
-            {
-                _context.Add(assignment);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
-            }
-            ViewData["DriverId"] = new SelectList(_context.Drivers, "DriverId", "Email", assignment.DriverId);
-            ViewData["VehicleId"] = new SelectList(_context.Vehicles, "VehicleId", "LicensePlate", assignment.VehicleId);
-            return View(assignment);
-        }
-
-        // GET: Assignments/Edit/5
-        public async Task<IActionResult> Edit(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
             var assignment = await _context.Assignments.FindAsync(id);
+
             if (assignment == null)
             {
                 return NotFound();
             }
-            ViewData["DriverId"] = new SelectList(_context.Drivers, "DriverId", "Email", assignment.DriverId);
-            ViewData["VehicleId"] = new SelectList(_context.Vehicles, "VehicleId", "LicensePlate", assignment.VehicleId);
-            return View(assignment);
+
+            return assignment;
         }
 
-        // POST: Assignments/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("AssignmentId,VehicleId,DriverId,StartDate,EndDate")] Assignment assignment)
+        // PUT: api/Assignments/5
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutAssignment(int id, Assignment assignment)
         {
             if (id != assignment.AssignmentId)
             {
-                return NotFound();
+                return BadRequest();
             }
 
-            if (ModelState.IsValid)
+            _context.Entry(assignment).State = EntityState.Modified;
+
+            try
             {
-                try
-                {
-                    _context.Update(assignment);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!AssignmentExists(assignment.AssignmentId))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));
+                await _context.SaveChangesAsync();
             }
-            ViewData["DriverId"] = new SelectList(_context.Drivers, "DriverId", "Email", assignment.DriverId);
-            ViewData["VehicleId"] = new SelectList(_context.Vehicles, "VehicleId", "LicensePlate", assignment.VehicleId);
-            return View(assignment);
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!AssignmentExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            return NoContent();
         }
 
-        // GET: Assignments/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        // POST: api/Assignments
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [HttpPost]
+        public async Task<ActionResult<Assignment>> PostAssignment(Assignment assignment)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            _context.Assignments.Add(assignment);
+            await _context.SaveChangesAsync();
 
-            var assignment = await _context.Assignments
-                .Include(a => a.Driver)
-                .Include(a => a.Vehicle)
-                .FirstOrDefaultAsync(m => m.AssignmentId == id);
+            return CreatedAtAction("GetAssignment", new { id = assignment.AssignmentId }, assignment);
+        }
+
+        // DELETE: api/Assignments/5
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteAssignment(int id)
+        {
+            var assignment = await _context.Assignments.FindAsync(id);
             if (assignment == null)
             {
                 return NotFound();
             }
 
-            return View(assignment);
-        }
-
-        // POST: Assignments/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var assignment = await _context.Assignments.FindAsync(id);
-            if (assignment != null)
-            {
-                _context.Assignments.Remove(assignment);
-            }
-
+            _context.Assignments.Remove(assignment);
             await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
+
+            return NoContent();
         }
 
         private bool AssignmentExists(int id)

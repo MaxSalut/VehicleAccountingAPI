@@ -2,15 +2,17 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using VehicleAccountingAPI.Data;
 using VehicleAccountingAPI.Models;
 
 namespace VehicleAccountingAPI.Controllers
 {
-    public class MaintenanceRecordsController : Controller
+    [Route("api/[controller]")]
+    [ApiController]
+    public class MaintenanceRecordsController : ControllerBase
     {
         private readonly VehicleAccountingContext _context;
 
@@ -19,141 +21,83 @@ namespace VehicleAccountingAPI.Controllers
             _context = context;
         }
 
-        // GET: MaintenanceRecords
-        public async Task<IActionResult> Index()
+        // GET: api/MaintenanceRecords
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<MaintenanceRecord>>> GetMaintenanceRecords()
         {
-            var vehicleAccountingContext = _context.MaintenanceRecords.Include(m => m.Vehicle);
-            return View(await vehicleAccountingContext.ToListAsync());
+            return await _context.MaintenanceRecords.ToListAsync();
         }
 
-        // GET: MaintenanceRecords/Details/5
-        public async Task<IActionResult> Details(int? id)
+        // GET: api/MaintenanceRecords/5
+        [HttpGet("{id}")]
+        public async Task<ActionResult<MaintenanceRecord>> GetMaintenanceRecord(int id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var maintenanceRecord = await _context.MaintenanceRecords
-                .Include(m => m.Vehicle)
-                .FirstOrDefaultAsync(m => m.MaintenanceRecordId == id);
-            if (maintenanceRecord == null)
-            {
-                return NotFound();
-            }
-
-            return View(maintenanceRecord);
-        }
-
-        // GET: MaintenanceRecords/Create
-        public IActionResult Create()
-        {
-            ViewData["VehicleId"] = new SelectList(_context.Vehicles, "VehicleId", "LicensePlate");
-            return View();
-        }
-
-        // POST: MaintenanceRecords/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("MaintenanceRecordId,VehicleId,MaintenanceDate,Description,Cost")] MaintenanceRecord maintenanceRecord)
-        {
-            if (ModelState.IsValid)
-            {
-                _context.Add(maintenanceRecord);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
-            }
-            ViewData["VehicleId"] = new SelectList(_context.Vehicles, "VehicleId", "LicensePlate", maintenanceRecord.VehicleId);
-            return View(maintenanceRecord);
-        }
-
-        // GET: MaintenanceRecords/Edit/5
-        public async Task<IActionResult> Edit(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
             var maintenanceRecord = await _context.MaintenanceRecords.FindAsync(id);
+
             if (maintenanceRecord == null)
             {
                 return NotFound();
             }
-            ViewData["VehicleId"] = new SelectList(_context.Vehicles, "VehicleId", "LicensePlate", maintenanceRecord.VehicleId);
-            return View(maintenanceRecord);
+
+            return maintenanceRecord;
         }
 
-        // POST: MaintenanceRecords/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("MaintenanceRecordId,VehicleId,MaintenanceDate,Description,Cost")] MaintenanceRecord maintenanceRecord)
+        // PUT: api/MaintenanceRecords/5
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutMaintenanceRecord(int id, MaintenanceRecord maintenanceRecord)
         {
             if (id != maintenanceRecord.MaintenanceRecordId)
             {
-                return NotFound();
+                return BadRequest();
             }
 
-            if (ModelState.IsValid)
+            _context.Entry(maintenanceRecord).State = EntityState.Modified;
+
+            try
             {
-                try
-                {
-                    _context.Update(maintenanceRecord);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!MaintenanceRecordExists(maintenanceRecord.MaintenanceRecordId))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));
+                await _context.SaveChangesAsync();
             }
-            ViewData["VehicleId"] = new SelectList(_context.Vehicles, "VehicleId", "LicensePlate", maintenanceRecord.VehicleId);
-            return View(maintenanceRecord);
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!MaintenanceRecordExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            return NoContent();
         }
 
-        // GET: MaintenanceRecords/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        // POST: api/MaintenanceRecords
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [HttpPost]
+        public async Task<ActionResult<MaintenanceRecord>> PostMaintenanceRecord(MaintenanceRecord maintenanceRecord)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            _context.MaintenanceRecords.Add(maintenanceRecord);
+            await _context.SaveChangesAsync();
 
-            var maintenanceRecord = await _context.MaintenanceRecords
-                .Include(m => m.Vehicle)
-                .FirstOrDefaultAsync(m => m.MaintenanceRecordId == id);
+            return CreatedAtAction("GetMaintenanceRecord", new { id = maintenanceRecord.MaintenanceRecordId }, maintenanceRecord);
+        }
+
+        // DELETE: api/MaintenanceRecords/5
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteMaintenanceRecord(int id)
+        {
+            var maintenanceRecord = await _context.MaintenanceRecords.FindAsync(id);
             if (maintenanceRecord == null)
             {
                 return NotFound();
             }
 
-            return View(maintenanceRecord);
-        }
-
-        // POST: MaintenanceRecords/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var maintenanceRecord = await _context.MaintenanceRecords.FindAsync(id);
-            if (maintenanceRecord != null)
-            {
-                _context.MaintenanceRecords.Remove(maintenanceRecord);
-            }
-
+            _context.MaintenanceRecords.Remove(maintenanceRecord);
             await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
+
+            return NoContent();
         }
 
         private bool MaintenanceRecordExists(int id)
