@@ -1,0 +1,274 @@
+﻿<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Записи обслуговування - Vehicle Accounting</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="/css/site.css" />
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="#">Vehicle Accounting</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/index.html">Головна</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/vehicle-types/index.html">Типи транспортних засобів</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/vehicles/index.html">Транспортні засоби</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/drivers/index.html">Водії</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/maintenance-records/index.html">Записи обслуговування</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/assignments/index.html">Призначення</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+    <main class="flex-grow-1">
+        <div class="container">
+            <h1>Записи обслуговування</h1>
+            <div class="mb-3">
+                <button class="btn btn-primary" onclick="showCreateForm()">Додати новий запис</button>
+            </div>
+            <table class="table" id="maintenanceRecordsTable">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Опис</th>
+                        <th>Вартість</th>
+                        <th>Транспортний засіб</th>
+                        <th>Дії</th>
+                    </tr>
+                </thead>
+                <tbody id="maintenanceRecordsBody"></tbody>
+            </table>
+
+            <!-- Форма для створення/редагування -->
+            <div id="formContainer" style="display: none;">
+                <h4 id="formTitle"></h4>
+                <hr />
+                <div class="row">
+                    <div class="col-md-6">
+                        <form id="maintenanceRecordForm">
+                            <input type="hidden" id="maintenanceRecordId" />
+                            <div class="form-group">
+                                <label for="vehicleId">Транспортний засіб</label>
+                                <select class="form-control" id="vehicleId" required>
+                                    <option value="">Оберіть транспортний засіб</option>
+                                </select>
+                                <div class="text-danger" id="vehicleIdError"></div>
+                            </div>
+                            <div class="form-group">
+                                <label for="maintenanceDate">Дата</label>
+                                <input type="date" class="form-control" id="maintenanceDate" required min="2000-01-01" max="2025-05-04" oninvalid="this.setCustomValidity('Дата повинна бути між 01.01.2000 і 04.05.2025')" oninput="this.setCustomValidity('')" />
+                                <div class="text-danger" id="maintenanceDateError"></div>
+                            </div>
+                            <div class="form-group">
+                                <label for="description">Опис</label>
+                                <textarea class="form-control" id="description" maxLength="500"></textarea>
+                                <div class="text-danger" id="descriptionError"></div>
+                            </div>
+                            <div class="form-group">
+                                <label for="cost">Вартість</label>
+                                <input type="number" class="form-control" id="cost" required step="0.01" min="0" max="10000000" oninvalid="this.setCustomValidity('Вартість повинна бути від 0 до 10,000,000')" oninput="this.setCustomValidity('')" />
+                                <div class="text-danger" id="costError"></div>
+                            </div>
+                            <div class="form-group mt-3">
+                                <button type="submit" class="btn btn-primary">Зберегти</button>
+                                <button type="button" class="btn btn-secondary" onclick="hideForm()">Скасувати</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer bg-primary text-white text-center py-3">
+        <div class="container">
+            <p>© 2025 - Vehicle Accounting</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const apiUrl = 'https://localhost:44360/api/MaintenanceRecords';
+        const vehiclesApiUrl = 'https://localhost:44360/api/Vehicles';
+
+        // Завантаження транспортних засобів для випадаючого списку
+        async function loadVehiclesForDropdown() {
+            try {
+                const response = await fetch(vehiclesApiUrl);
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                const vehicles = await response.json();
+                const select = document.getElementById('vehicleId');
+                select.innerHTML = '<option value="">Оберіть транспортний засіб</option>';
+                vehicles.forEach(vehicle => {
+                    const option = document.createElement('option');
+                    option.value = vehicle.vehicleId;
+                    option.textContent = `${vehicle.licensePlate} (${vehicle.model || '-'})`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Помилка при завантаженні транспортних засобів:', error);
+            }
+        }
+
+        // Завантаження списку записів при старті
+        async function loadMaintenanceRecords() {
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const maintenanceRecords = await response.json();
+                const tbody = document.getElementById('maintenanceRecordsBody');
+                tbody.innerHTML = '';
+                if (maintenanceRecords.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5">Немає даних</td></tr>';
+                    return;
+                }
+                maintenanceRecords.forEach(record => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                            <td>${new Date(record.maintenanceDate).toISOString().split('T')[0] || '-'}</td>
+                            <td>${record.description || '-'}</td>
+                            <td>${record.cost.toFixed(2) || '0.00'} грн</td>
+                            <td>${record.vehicle?.licensePlate || '-'}</td>
+                            <td>
+                                <button class="btn btn-warning btn-sm" onclick="showEditForm(${record.maintenanceRecordId}, ${record.vehicleId || ''}, '${new Date(record.maintenanceDate).toISOString().split('T')[0] || ''}', '${record.description || ''}', ${record.cost || 0})">Редагувати</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteMaintenanceRecord(${record.maintenanceRecordId})">Видалити</button>
+                            </td>
+                        `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Помилка при завантаженні записів:', error);
+                document.getElementById('maintenanceRecordsBody').innerHTML = `<tr><td colspan="5">Помилка завантаження даних: ${error.message}</td></tr>`;
+            }
+        }
+
+        // Показати форму для створення
+        function showCreateForm() {
+            document.getElementById('formTitle').textContent = 'Додати новий запис';
+            document.getElementById('maintenanceRecordId').value = '';
+            document.getElementById('vehicleId').value = '';
+            document.getElementById('maintenanceDate').value = '';
+            document.getElementById('description').value = '';
+            document.getElementById('cost').value = '';
+            document.getElementById('vehicleIdError').textContent = '';
+            document.getElementById('maintenanceDateError').textContent = '';
+            document.getElementById('descriptionError').textContent = '';
+            document.getElementById('costError').textContent = '';
+            document.getElementById('formContainer').style.display = 'block';
+        }
+
+        // Показати форму для редагування
+        function showEditForm(id, vehicleId, maintenanceDate, description, cost) {
+            document.getElementById('formTitle').textContent = 'Редагувати запис';
+            document.getElementById('maintenanceRecordId').value = id;
+            document.getElementById('vehicleId').value = vehicleId;
+            document.getElementById('maintenanceDate').value = maintenanceDate;
+            document.getElementById('description').value = description;
+            document.getElementById('cost').value = cost;
+            document.getElementById('vehicleIdError').textContent = '';
+            document.getElementById('maintenanceDateError').textContent = '';
+            document.getElementById('descriptionError').textContent = '';
+            document.getElementById('costError').textContent = '';
+            document.getElementById('formContainer').style.display = 'block';
+        }
+
+        // Приховати форму
+        function hideForm() {
+            document.getElementById('formContainer').style.display = 'none';
+        }
+
+        // Створити/оновити запис
+        document.getElementById('maintenanceRecordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('maintenanceRecordId').value;
+            const vehicleId = document.getElementById('vehicleId').value;
+            const maintenanceDate = document.getElementById('maintenanceDate').value;
+            const description = document.getElementById('description').value;
+            const cost = document.getElementById('cost').value;
+            const url = id ? `${apiUrl}/${id}` : apiUrl;
+            const method = id ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        maintenanceRecordId: parseInt(id) || 0,
+                        vehicleId: parseInt(vehicleId),
+                        maintenanceDate: maintenanceDate + 'T00:00:00Z', // Додаємо час для DateTime
+                        description: description,
+                        cost: parseFloat(cost)
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    if (errorText.includes('MaintenanceDate')) {
+                        document.getElementById('maintenanceDateError').textContent = errorText;
+                    } else if (errorText.includes('VehicleId')) {
+                        document.getElementById('vehicleIdError').textContent = "Оберіть транспортний засіб";
+                    } else if (errorText.includes('Description')) {
+                        document.getElementById('descriptionError').textContent = "Опис не може перевищувати 500 символів";
+                    } else if (errorText.includes('Cost')) {
+                        document.getElementById('costError').textContent = "Вартість повинна бути від 0 до 10,000,000";
+                    } else {
+                        document.getElementById('vehicleIdError').textContent = 'Помилка: ' + errorText;
+                        document.getElementById('maintenanceDateError').textContent = 'Помилка: ' + errorText;
+                        document.getElementById('descriptionError').textContent = 'Помилка: ' + errorText;
+                        document.getElementById('costError').textContent = 'Помилка: ' + errorText;
+                    }
+                    throw new Error(`HTTP error! Status: ${response.status}, Details: ${errorText}`);
+                }
+                hideForm();
+                loadMaintenanceRecords();
+            } catch (error) {
+                // Помилка вже оброблена вище
+            }
+        });
+
+        // Видалити запис
+        async function deleteMaintenanceRecord(id) {
+            if (confirm('Ви впевнені, що хочете видалити цей запис?')) {
+                try {
+                    const response = await fetch(`${apiUrl}/${id}`, { method: 'DELETE' });
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`HTTP error! Status: ${response.status}, Details: ${errorText}`);
+                    }
+                    loadMaintenanceRecords();
+                } catch (error) {
+                    console.error('Помилка при видаленні:', error);
+                }
+            }
+        }
+
+        // Завантаження при старті
+        window.onload = () => {
+            loadVehiclesForDropdown();
+            loadMaintenanceRecords();
+        };
+    </script>
+</body>
+</html>

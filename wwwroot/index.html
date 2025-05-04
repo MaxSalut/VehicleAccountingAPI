@@ -1,0 +1,283 @@
+﻿<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vehicle Accounting - Головна</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="/css/site.css" />
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="#">Vehicle Accounting</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/index.html">Головна</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/vehicle-types/index.html">Типи транспортних засобів</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/vehicles/index.html">Транспортні засоби</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/drivers/index.html">Водії</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/maintenance-records/index.html">Записи обслуговування</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/assignments/index.html">Призначення</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="flex-grow-1">
+        <div class="container">
+            <h1 class="my-4">Vehicle Accounting - Головна</h1>
+
+            <!-- Статусна панель -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card text-white bg-info mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Загальна кількість ТЗ</h5>
+                            <p class="card-text" id="totalVehicles">Завантаження...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-white bg-success mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Загальна кількість водіїв</h5>
+                            <p class="card-text" id="totalDrivers">Завантаження...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-white bg-warning mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Активні призначення</h5>
+                            <p class="card-text" id="activeAssignments">Завантаження...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Діаграми -->
+            <div class="row">
+                <!-- Витрати на обслуговування по місяцях -->
+                <div class="col-md-6 mb-4">
+                    <h4>Витрати на обслуговування по місяцях</h4>
+                    <div id="maintenanceCostChart" style="width: 100%; height: 400px;"></div>
+                </div>
+
+                <!-- Активні/Неактивні призначення -->
+                <div class="col-md-6 mb-4">
+                    <h4>Статус призначень</h4>
+                    <div id="assignmentStatusChart" style="width: 100%; height: 400px;"></div>
+                </div>
+            </div>
+
+            <!-- Фільтр записів обслуговування -->
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <h4>Фільтр записів</h4>
+                    <input type="date" class="form-control" id="filterDate" min="2000-01-01" max="2025-05-04" />
+                    <button class="btn btn-primary mt-2" onclick="filterRecentMaintenanceRecords()">Застосувати</button>
+                </div>
+            </div>
+
+            <!-- Останні записи обслуговування -->
+            <div class="col-md-12 mb-4">
+                <h4>Останні записи обслуговування</h4>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Дата</th>
+                            <th>Опис</th>
+                            <th>Вартість</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentMaintenanceRecords"></tbody>
+                </table>
+            </div>
+
+                   </div>
+    </main>
+
+    <footer class="footer bg-primary text-white text-center py-3">
+        <div class="container">
+            <p>© 2025 - Vehicle Accounting</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Завантаження Google Charts
+        google.charts.load('current', { packages: ['corechart'] });
+        google.charts.setOnLoadCallback(loadCharts);
+
+        async function loadCharts() {
+            try {
+                // Витрати на обслуговування по місяцях
+                const maintenanceCostResponse = await fetch('https://localhost:44360/api/MaintenanceRecords/costs-by-month');
+                if (!maintenanceCostResponse.ok) throw new Error(`HTTP error! Status: ${maintenanceCostResponse.status}`);
+                const maintenanceCostData = await maintenanceCostResponse.json();
+                drawMaintenanceCostChart(maintenanceCostData);
+
+                // Статус призначень
+                const assignmentStatusResponse = await fetch('https://localhost:44360/api/Assignments/status-count');
+                if (!assignmentStatusResponse.ok) throw new Error(`HTTP error! Status: ${assignmentStatusResponse.status}`);
+                const assignmentStatusData = await assignmentStatusResponse.json();
+                drawAssignmentStatusChart(assignmentStatusData);
+
+                // Статусна панель
+                await loadStats();
+
+                // Останні записи обслуговування
+                await loadRecentMaintenanceRecords();
+
+               
+            } catch (error) {
+                console.error('Помилка при завантаженні даних:', error);
+            }
+        }
+
+        // Діаграма: Витрати на обслуговування по місяцях
+        function drawMaintenanceCostChart(data) {
+            const chartData = new google.visualization.DataTable();
+            chartData.addColumn('string', 'Місяць');
+            chartData.addColumn('number', 'Витрати (грн)');
+            data.forEach(item => {
+                chartData.addRow([`${item.month}/${item.year}`, parseFloat(item.totalCost)]);
+            });
+
+            const options = {
+                title: 'Витрати на обслуговування по місяцях',
+                chartArea: { width: '70%' },
+                hAxis: { title: 'Місяць' },
+                vAxis: { title: 'Витрати (грн)' }
+            };
+
+            const chart = new google.visualization.LineChart(document.getElementById('maintenanceCostChart'));
+            chart.draw(chartData, options);
+        }
+
+        // Діаграма: Статус призначень
+        function drawAssignmentStatusChart(data) {
+            const chartData = new google.visualization.DataTable();
+            chartData.addColumn('string', 'Статус');
+            chartData.addColumn('number', 'Кількість');
+            chartData.addRow(['Активні', data.active]);
+            chartData.addRow(['Неактивні', data.inactive]);
+
+            const options = {
+                title: 'Статус призначень',
+                chartArea: { width: '70%' }
+            };
+
+            const chart = new google.visualization.PieChart(document.getElementById('assignmentStatusChart'));
+            chart.draw(chartData, options);
+        }
+
+        // Статусна панель
+        async function loadStats() {
+            try {
+                const vehiclesResponse = await fetch('https://localhost:44360/api/Vehicles');
+                const driversResponse = await fetch('https://localhost:44360/api/Drivers');
+                const assignmentsResponse = await fetch('https://localhost:44360/api/Assignments/status-count');
+                if (!vehiclesResponse.ok || !driversResponse.ok || !assignmentsResponse.ok) {
+                    throw new Error(`HTTP error! Status: ${vehiclesResponse.status || driversResponse.status || assignmentsResponse.status}`);
+                }
+                const vehicles = await vehiclesResponse.json();
+                const drivers = await driversResponse.json();
+                const assignments = await assignmentsResponse.json();
+
+                document.getElementById('totalVehicles').textContent = vehicles.length;
+                document.getElementById('totalDrivers').textContent = drivers.length;
+                document.getElementById('activeAssignments').textContent = assignments.active;
+            } catch (error) {
+                console.error('Помилка при завантаженні статистики:', error);
+            }
+        }
+
+        // Завантаження останніх записів обслуговування
+        async function loadRecentMaintenanceRecords() {
+            try {
+                const response = await fetch('https://localhost:44360/api/MaintenanceRecords/recent');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const records = await response.json();
+                const tbody = document.getElementById('recentMaintenanceRecords');
+                tbody.innerHTML = '';
+                if (records.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3">Немає даних</td></tr>';
+                    return;
+                }
+                records.forEach(record => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${new Date(record.maintenanceDate).toISOString().split('T')[0] || '-'}</td>
+                        <td>${record.description || '-'}</td>
+                        <td>${record.cost.toFixed(2) || '0.00'} грн</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Помилка при завантаженні записів:', error);
+                document.getElementById('recentMaintenanceRecords').innerHTML = `<tr><td colspan="3">Помилка завантаження даних: ${error.message}</td></tr>`;
+            }
+        }
+
+        // Фільтрація записів за датою
+        async function filterRecentMaintenanceRecords() {
+            const filterDate = document.getElementById('filterDate').value;
+            try {
+                const response = await fetch('https://localhost:44360/api/MaintenanceRecords/recent');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const records = await response.json();
+                const tbody = document.getElementById('recentMaintenanceRecords');
+                tbody.innerHTML = '';
+                const filteredRecords = filterDate ? records.filter(record =>
+                    new Date(record.maintenanceDate).toISOString().split('T')[0] === filterDate
+                ) : records;
+                if (filteredRecords.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3">Немає даних для вибраної дати</td></tr>';
+                    return;
+                }
+                filteredRecords.forEach(record => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${new Date(record.maintenanceDate).toISOString().split('T')[0] || '-'}</td>
+                        <td>${record.description || '-'}</td>
+                        <td>${record.cost.toFixed(2) || '0.00'} грн</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Помилка при фільтрації записів:', error);
+                document.getElementById('recentMaintenanceRecords').innerHTML = `<tr><td colspan="3">Помилка: ${error.message}</td></tr>`;
+            }
+        }
+
+        // Завантаження при старті
+        window.onload = () => {
+            loadCharts();
+        };
+    </script>
+</body>
+</html>

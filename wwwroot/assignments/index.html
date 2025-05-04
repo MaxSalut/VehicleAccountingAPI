@@ -1,0 +1,292 @@
+﻿<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Призначення - Vehicle Accounting</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="/css/site.css" />
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="#">Vehicle Accounting</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/index.html">Головна</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/vehicle-types/index.html">Типи транспортних засобів</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/vehicles/index.html">Транспортні засоби</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/drivers/index.html">Водії</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/maintenance-records/index.html">Записи обслуговування</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/assignments/index.html">Призначення</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="flex-grow-1">
+        <div class="container">
+            <h1>Призначення</h1>
+            <div class="mb-3">
+                <button class="btn btn-primary" onclick="showCreateForm()">Додати нове призначення</button>
+            </div>
+            <table class="table" id="assignmentsTable">
+                <thead>
+                    <tr>
+                        <th>Дата початку</th>
+                        <th>Дата завершення</th>
+                        <th>Транспортний засіб</th>
+                        <th>Водій</th>
+                        <th>Дії</th>
+                    </tr>
+                </thead>
+                <tbody id="assignmentsBody"></tbody>
+            </table>
+
+            <!-- Форма для створення/редагування -->
+            <div id="formContainer" style="display: none;">
+                <h4 id="formTitle"></h4>
+                <hr />
+                <div class="row">
+                    <div class="col-md-6">
+                        <form id="assignmentForm">
+                            <input type="hidden" id="assignmentId" />
+                            <div class="form-group">
+                                <label for="vehicleId">Транспортний засіб</label>
+                                <select class="form-control" id="vehicleId" required>
+                                    <option value="">Оберіть транспортний засіб</option>
+                                </select>
+                                <div class="text-danger" id="vehicleIdError"></div>
+                            </div>
+                            <div class="form-group">
+                                <label for="driverId">Водій</label>
+                                <select class="form-control" id="driverId" required>
+                                    <option value="">Оберіть водія</option>
+                                </select>
+                                <div class="text-danger" id="driverIdError"></div>
+                            </div>
+                            <div class="form-group">
+                                <label for="startDate">Дата початку</label>
+                                <input type="date" class="form-control" id="startDate" required min="2000-01-01" max="2025-05-04" oninvalid="this.setCustomValidity('Дата повинна бути між 01.01.2000 і 04.05.2025')" oninput="this.setCustomValidity('')" />
+                                <div class="text-danger" id="startDateError"></div>
+                            </div>
+                            <div class="form-group">
+                                <label for="endDate">Дата завершення</label>
+                                <input type="date" class="form-control" id="endDate" min="2000-01-01" max="2025-05-04" oninvalid="this.setCustomValidity('Дата повинна бути між 01.01.2000 і 04.05.2025')" oninput="this.setCustomValidity('')" />
+                                <div class="text-danger" id="endDateError"></div>
+                            </div>
+                            <div class="form-group mt-3">
+                                <button type="submit" class="btn btn-primary">Зберегти</button>
+                                <button type="button" class="btn btn-secondary" onclick="hideForm()">Скасувати</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer bg-primary text-white text-center py-3">
+        <div class="container">
+            <p>© 2025 - Vehicle Accounting</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const apiUrl = 'https://localhost:44360/api/Assignments';
+        const vehiclesApiUrl = 'https://localhost:44360/api/Vehicles';
+        const driversApiUrl = 'https://localhost:44360/api/Drivers';
+
+        // Завантаження транспортних засобів і водіїв для випадаючих списків
+        async function loadDropdowns() {
+            try {
+                const [vehiclesResponse, driversResponse] = await Promise.all([
+                    fetch(vehiclesApiUrl),
+                    fetch(driversApiUrl)
+                ]);
+                if (!vehiclesResponse.ok || !driversResponse.ok) throw new Error(`HTTP error! Status: ${vehiclesResponse.status || driversResponse.status}`);
+                const vehicles = await vehiclesResponse.json();
+                const drivers = await driversResponse.json();
+
+                const vehicleSelect = document.getElementById('vehicleId');
+                vehicleSelect.innerHTML = '<option value="">Оберіть транспортний засіб</option>';
+                vehicles.forEach(vehicle => {
+                    const option = document.createElement('option');
+                    option.value = vehicle.vehicleId;
+                    option.textContent = `${vehicle.licensePlate} (${vehicle.model || '-'})`;
+                    vehicleSelect.appendChild(option);
+                });
+
+                const driverSelect = document.getElementById('driverId');
+                driverSelect.innerHTML = '<option value="">Оберіть водія</option>';
+                drivers.forEach(driver => {
+                    const option = document.createElement('option');
+                    option.value = driver.driverId;
+                    option.textContent = `${driver.name} (${driver.email || '-'})`;
+                    driverSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Помилка при завантаженні списків:', error);
+            }
+        }
+
+        // Завантаження списку призначень при старті
+        async function loadAssignments() {
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const assignments = await response.json();
+                const tbody = document.getElementById('assignmentsBody');
+                tbody.innerHTML = '';
+                if (assignments.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5">Немає даних</td></tr>';
+                    return;
+                }
+                assignments.forEach(assignment => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${new Date(assignment.startDate).toISOString().split('T')[0] || '-'}</td>
+                        <td>${assignment.endDate ? new Date(assignment.endDate).toISOString().split('T')[0] : '-'}</td>
+                        <td>${assignment.vehicle?.licensePlate || '-'}</td>
+                        <td>${assignment.driver?.name || '-'}</td>
+                        <td>
+                            <button class="btn btn-warning btn-sm" onclick="showEditForm(${assignment.assignmentId}, ${assignment.vehicleId || ''}, ${assignment.driverId || ''}, '${new Date(assignment.startDate).toISOString().split('T')[0] || ''}', '${assignment.endDate ? new Date(assignment.endDate).toISOString().split('T')[0] : ''}')">Редагувати</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteAssignment(${assignment.assignmentId})">Видалити</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Помилка при завантаженні призначень:', error);
+                document.getElementById('assignmentsBody').innerHTML = `<tr><td colspan="5">Помилка завантаження даних: ${error.message}</td></tr>`;
+            }
+        }
+
+        // Показати форму для створення
+        function showCreateForm() {
+            document.getElementById('formTitle').textContent = 'Додати нове призначення';
+            document.getElementById('assignmentId').value = '';
+            document.getElementById('vehicleId').value = '';
+            document.getElementById('driverId').value = '';
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            document.getElementById('vehicleIdError').textContent = '';
+            document.getElementById('driverIdError').textContent = '';
+            document.getElementById('startDateError').textContent = '';
+            document.getElementById('endDateError').textContent = '';
+            document.getElementById('formContainer').style.display = 'block';
+        }
+
+        // Показати форму для редагування
+        function showEditForm(id, vehicleId, driverId, startDate, endDate) {
+            document.getElementById('formTitle').textContent = 'Редагувати призначення';
+            document.getElementById('assignmentId').value = id;
+            document.getElementById('vehicleId').value = vehicleId;
+            document.getElementById('driverId').value = driverId;
+            document.getElementById('startDate').value = startDate;
+            document.getElementById('endDate').value = endDate || '';
+            document.getElementById('vehicleIdError').textContent = '';
+            document.getElementById('driverIdError').textContent = '';
+            document.getElementById('startDateError').textContent = '';
+            document.getElementById('endDateError').textContent = '';
+            document.getElementById('formContainer').style.display = 'block';
+        }
+
+        // Приховати форму
+        function hideForm() {
+            document.getElementById('formContainer').style.display = 'none';
+        }
+
+        // Створити/оновити призначення
+        document.getElementById('assignmentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('assignmentId').value;
+            const vehicleId = document.getElementById('vehicleId').value;
+            const driverId = document.getElementById('driverId').value;
+            const startDate = document.getElementById('startDate').value + 'T00:00:00Z';
+            const endDate = document.getElementById('endDate').value ? document.getElementById('endDate').value + 'T00:00:00Z' : null;
+            const url = id ? `${apiUrl}/${id}` : apiUrl;
+            const method = id ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        assignmentId: parseInt(id) || 0,
+                        vehicleId: parseInt(vehicleId),
+                        driverId: parseInt(driverId),
+                        startDate: startDate,
+                        endDate: endDate
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    if (errorText.includes('StartDate')) {
+                        document.getElementById('startDateError').textContent = errorText;
+                    } else if (errorText.includes('EndDate')) {
+                        document.getElementById('endDateError').textContent = errorText;
+                    } else if (errorText.includes('VehicleId')) {
+                        document.getElementById('vehicleIdError').textContent = "Оберіть транспортний засіб";
+                    } else if (errorText.includes('DriverId')) {
+                        document.getElementById('driverIdError').textContent = "Оберіть водія";
+                    } else {
+                        document.getElementById('vehicleIdError').textContent = 'Помилка: ' + errorText;
+                        document.getElementById('driverIdError').textContent = 'Помилка: ' + errorText;
+                        document.getElementById('startDateError').textContent = 'Помилка: ' + errorText;
+                        document.getElementById('endDateError').textContent = 'Помилка: ' + errorText;
+                    }
+                    throw new Error(`HTTP error! Status: ${response.status}, Details: ${errorText}`);
+                }
+                hideForm();
+                loadAssignments();
+            } catch (error) {
+                // Помилка вже оброблена вище
+            }
+        });
+
+        // Видалити призначення
+        async function deleteAssignment(id) {
+            if (confirm('Ви впевнені, що хочете видалити це призначення?')) {
+                try {
+                    const response = await fetch(`${apiUrl}/${id}`, { method: 'DELETE' });
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`HTTP error! Status: ${response.status}, Details: ${errorText}`);
+                    }
+                    loadAssignments();
+                } catch (error) {
+                    console.error('Помилка при видаленні:', error);
+                }
+            }
+        }
+
+        // Завантаження при старті
+        window.onload = () => {
+            loadDropdowns();
+            loadAssignments();
+        };
+    </script>
+</body>
+</html>

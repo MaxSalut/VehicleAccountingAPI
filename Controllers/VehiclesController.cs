@@ -22,9 +22,7 @@ namespace VehicleAccountingAPI.Controllers
         {
             return await _context.Vehicles
                 .Include(v => v.VehicleType)
-                .Include(v => v.MaintenanceRecords)
-                .Include(v => v.Assignments)
-                .ToListAsync();
+                .ToListAsync(); // Поки що включаємо тільки VehicleType, інші можна додати при потребі
         }
 
         // GET: api/Vehicles/5

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VehicleAccountingAPI.Data;
 using VehicleAccountingAPI.Models;
@@ -25,14 +20,17 @@ namespace VehicleAccountingAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<VehicleType>>> GetVehicleTypes()
         {
-            return await _context.VehicleTypes.ToListAsync();
+            return await _context.VehicleTypes
+                .ToListAsync();
         }
 
         // GET: api/VehicleTypes/5
         [HttpGet("{id}")]
         public async Task<ActionResult<VehicleType>> GetVehicleType(int id)
         {
-            var vehicleType = await _context.VehicleTypes.FindAsync(id);
+            var vehicleType = await _context.VehicleTypes
+                .Include(vt => vt.Vehicles)
+                .FirstOrDefaultAsync(vt => vt.VehicleTypeId == id);
 
             if (vehicleType == null)
             {
@@ -43,13 +41,17 @@ namespace VehicleAccountingAPI.Controllers
         }
 
         // PUT: api/VehicleTypes/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutVehicleType(int id, VehicleType vehicleType)
         {
             if (id != vehicleType.VehicleTypeId)
             {
                 return BadRequest();
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
             }
 
             _context.Entry(vehicleType).State = EntityState.Modified;
@@ -74,14 +76,18 @@ namespace VehicleAccountingAPI.Controllers
         }
 
         // POST: api/VehicleTypes
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<VehicleType>> PostVehicleType(VehicleType vehicleType)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
             _context.VehicleTypes.Add(vehicleType);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetVehicleType", new { id = vehicleType.VehicleTypeId }, vehicleType);
+            return CreatedAtAction(nameof(GetVehicleType), new { id = vehicleType.VehicleTypeId }, vehicleType);
         }
 
         // DELETE: api/VehicleTypes/5

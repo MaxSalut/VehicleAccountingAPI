@@ -9,14 +9,14 @@ namespace VehicleAccountingAPI.Models
         public int VehicleId { get; set; }
 
         [Required]
-        [StringLength(20)]
+        [StringLength(20, ErrorMessage = "Довжина має бути до 100символів")]
         public string LicensePlate { get; set; } = string.Empty;
 
         [Required]
-        [StringLength(100)]
+        [StringLength(100, ErrorMessage = "Довжина має бути до 100символів")]
         public string Model { get; set; } = string.Empty;
 
-        [Range(1900, 2100)]
+            [Range(1900, 2025, ErrorMessage = "Рік повинен бути між 1900 і 2025")]
         public int Year { get; set; }
 
         [ForeignKey("VehicleType")]
